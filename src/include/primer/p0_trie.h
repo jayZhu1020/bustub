@@ -253,6 +253,26 @@ class Trie {
   // ReaderWriterLatch latch_;
   std::shared_mutex mtx;
 
+  bool RemoveHelper(const std::string &key, size_t index, bool& found, std::unique_ptr<TrieNode> *ptr) {
+    if (index == key.size()) {
+      if ((*ptr)->IsEndNode()) {
+        found = true;
+        (*ptr)->SetEndNode(false);
+        return !(*ptr)->HasChildren();
+      }
+      return false;
+    }
+    char ch = key[index];
+    if ((*ptr)->HasChild(ch)) {
+      bool should_remove = RemoveHelper(key, index+1, found, (*ptr)->GetChildNode(ch));
+      if (should_remove) {
+        (*ptr)->RemoveChildNode(ch);
+        if (!(*ptr)->HasChildren() && !(*ptr)->IsEndNode())
+          return true;
+      }
+    }
+    return false;
+  }
 
  public:
   /**
@@ -331,28 +351,6 @@ class Trie {
    * @return True if key exists and is removed, false otherwise
    */
   /* returns true if we should recursively remove this node */
-  bool RemoveHelper(const std::string &key, size_t index, bool& found, std::unique_ptr<TrieNode> *ptr) {
-    if (index == key.size()) {
-      if ((*ptr)->IsEndNode()) {
-        // LOG_INFO("%s found", key.c_str());
-        found = true;
-        (*ptr)->SetEndNode(false);
-        return !(*ptr)->HasChildren();
-      }
-      return false;
-    }
-    char ch = key[index];
-    if ((*ptr)->HasChild(ch)) {
-      bool should_remove = RemoveHelper(key, index+1, found, (*ptr)->GetChildNode(ch));
-      if (should_remove) {
-        (*ptr)->RemoveChildNode(ch);
-        if (!(*ptr)->HasChildren() && !(*ptr)->IsEndNode())
-          return true;
-      }
-    }
-    return false;
-  }
-
   bool Remove(const std::string &key) {
     std::unique_lock<std::shared_mutex> lck(mtx);
     if (key.size() == 0)
